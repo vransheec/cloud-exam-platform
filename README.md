@@ -12,23 +12,15 @@ The platform is provider-agnostic and supports multiple certification tracks acr
 
 ## Architecture
 
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   CloudFront    │────▶│   API Gateway    │────▶│  Lambda         │
-│   + S3 Static   │     │  + Cognito Auth  │     │  Node.js 18     │
-│   (Frontend)    │     │                  │     │  256-1024 MB    │
-└─────────────────┘     └──────────────────┘     └────────┬────────┘
-                                                          │
-                        ┌─────────────────┐     ┌─────────▼────────┐
-                        │   S3 Bucket     │     │   DynamoDB       │
-                        │   (Images)      │     │   11 tables      │
-                        └─────────────────┘     │   PAY_PER_REQUEST│
-                                                └──────────────────┘
-                        ┌─────────────────┐
-                        │  Cognito        │
-                        │  User Pool      │
-                        │  (Auth + Roles) │
-                        └─────────────────┘
+```mermaid
+flowchart LR
+    U([User]) --> CF[CloudFront + S3<br/>React frontend]
+    CF --> AG[API Gateway<br/>+ Cognito Authorizer]
+    AG --> L[Lambda<br/>Node.js 18]
+    L --> DB[(DynamoDB<br/>11 tables, PAY_PER_REQUEST)]
+    L --> S3[(S3<br/>question images)]
+    COG[Cognito User Pool<br/>roles: operator / assistant / student] --> AG
+    L -. sales webhook .-> EXT[[External integration]]
 ```
 
 ## Tech stack
