@@ -1,0 +1,24 @@
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "cloud-exam-platform"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+parameter_overrides = [
+    "Environment=development",
+    "JWTExpiration=24h",
+    "TablePrefix=cloud-exam-platform-development",
+    "JWTSecret=YOUR_JWT_SECRET_HERE",
+    "CognitoUserPoolId=YOUR_COGNITO_USER_POOL_ID",
+    "CognitoClientId=YOUR_COGNITO_CLIENT_ID",
+    "WebhookApiKey=YOUR_WEBHOOK_API_KEY"
+]

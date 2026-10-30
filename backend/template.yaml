@@ -1,0 +1,1561 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Cloud Exam Platform - Serverless Backend (Added incorrectExplanation support)
+
+# Global configuration for all functions
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        NODE_ENV: !Ref Environment
+        JWT_SECRET: !Ref JWTSecret
+        JWT_EXPIRATION: !Ref JWTExpiration
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+        COGNITO_CLIENT_ID: !Ref CognitoClientId
+        COGNITO_REGION: !Ref AWS::Region
+        DYNAMODB_TABLE_PREFIX: !Ref TablePrefix
+        S3_BUCKET_NAME: !Ref ImageBucket
+        S3_REGION: !Ref AWS::Region
+        USERS_TABLE: !Sub '${TablePrefix}-users'
+        STUDENTS_TABLE: !Sub '${TablePrefix}-students'
+        COURSES_TABLE: !Sub '${TablePrefix}-courses'
+        QUESTIONS_TABLE: !Sub '${TablePrefix}-questions'
+        QUESTION_HISTORY_TABLE: !Sub '${TablePrefix}-question-history'
+        ALTERNATIVES_TABLE: !Sub '${TablePrefix}-alternatives'
+        ENROLLMENTS_TABLE: !Sub '${TablePrefix}-enrollments'
+        EXAM_SESSIONS_TABLE: !Sub '${TablePrefix}-exam-sessions'
+        ANSWERS_TABLE: !Sub '${TablePrefix}-answers'
+        EXAM_RESULTS_TABLE: !Sub '${TablePrefix}-exam-results'
+        SYSTEM_CONFIG_TABLE: !Sub '${TablePrefix}-system-config'
+        DEPLOYMENT_VERSION: "3.12"
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowOrigin: "'*'"
+
+# Parameters for deployment configuration
+Parameters:
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Deployment environment
+
+  JWTSecret:
+    Type: String
+    NoEcho: true
+    Description: Secret key for JWT token generation (deprecated, kept for backward compatibility)
+
+  JWTExpiration:
+    Type: String
+    Default: '24h'
+    Description: JWT token expiration time (deprecated, kept for backward compatibility)
+
+  TablePrefix:
+    Type: String
+    Default: cloud-exam-platform
+    Description: Prefix for DynamoDB table names
+
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID for authentication
+
+  CognitoClientId:
+    Type: String
+    Description: Cognito App Client ID
+
+  WebhookApiKey:
+    Type: String
+    NoEcho: true
+    Description: API key for webhook endpoints (Apps Script integration)
+
+Resources:
+  # API Gateway
+  CloudExamApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      BinaryMediaTypes:
+        - "multipart/form-data"
+        - "image/*"
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+            Identity:
+              Header: Authorization
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
+  # Authentication Functions
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.login
+      Events:
+        LoginApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /auth/login
+            Method: POST
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-users'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminRemoveUserFromGroup
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminListGroupsForUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  LogoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.logout
+      Events:
+        LogoutApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /auth/logout
+            Method: POST
+
+  GetCurrentUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getCurrentUser
+      Events:
+        GetCurrentUserApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /auth/me
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-users'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+
+  # Operator Functions
+  CreateStudentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.createStudent
+      Events:
+        CreateStudentApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-users'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminDeleteUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  BulkCreateStudentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.bulkCreateStudents
+      Timeout: 120
+      Events:
+        BulkCreateStudentsApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students/bulk
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-users'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminDeleteUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  UpdateStudentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.updateStudent
+      Events:
+        UpdateStudentApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+
+  CreateEnrollmentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.createEnrollment
+      Events:
+        CreateEnrollmentApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students/{id}/enrollments
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  ActivateStudentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.activateStudent
+      Events:
+        ActivateStudentApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students/{id}/activate
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+
+  ResetStudentPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.resetStudentPassword
+      Events:
+        ResetStudentPasswordApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students/{id}/reset-password
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminSetUserPassword
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  ResetAssistantPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.resetAssistantPassword
+      Events:
+        ResetAssistantPasswordApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/assistants/{id}/reset-password
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-assistants'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminSetUserPassword
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  SetSiteAvailabilityFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.setSiteAvailability
+      Events:
+        SetSiteAvailabilityApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /system/availability
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-system-config'
+
+  GetSiteAvailabilityFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getSiteAvailability
+      Events:
+        GetSiteAvailabilityApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /system/availability
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-system-config'
+
+  GetStudentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getStudent
+      Events:
+        GetStudentApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+
+  GetAllStudentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getAllStudents
+      Events:
+        GetAllStudentsApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminRemoveUserFromGroup
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminListGroupsForUser
+                - cognito-idp:ListUsersInGroup
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  # Course Management Functions
+  CreateCourseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.createCourse
+      Events:
+        CreateCourseApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/courses
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  UpdateCourseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.updateCourse
+      Events:
+        UpdateCourseApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/courses/{code}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  DeleteCourseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.deleteCourse
+      Events:
+        DeleteCourseApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/courses/{code}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  GetAllCoursesOperatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getAllCourses
+      Events:
+        GetAllCoursesApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/courses
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  GetCourseOperatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getCourse
+      Events:
+        GetCourseApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/courses/{code}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  # Assistant Management Functions
+  CreateAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.createAssistant
+      Events:
+        CreateAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/assistants
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminListGroupsForUser
+                - cognito-idp:ListUsers
+                - cognito-idp:ListUsersInGroup
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  UpdateAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.updateAssistant
+      Events:
+        UpdateAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/assistants/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminListGroupsForUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  DeleteAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.deleteAssistant
+      Events:
+        DeleteAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/assistants/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminListGroupsForUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  GetAllAssistantsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getAllAssistants
+      Events:
+        GetAllAssistantsApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/assistants
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminRemoveUserFromGroup
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminListGroupsForUser
+                - cognito-idp:ListUsersInGroup
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  GetAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getAssistant
+      Events:
+        GetAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /operator/assistants/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminListGroupsForUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  # Assistant Functions
+  CreateQuestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.createQuestion
+      Events:
+        CreateQuestionApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /questions
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  UpdateQuestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.updateQuestion
+      Events:
+        UpdateQuestionApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /questions/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-question-history'
+
+  DeleteQuestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.deleteQuestion
+      Events:
+        DeleteQuestionApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /questions/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+
+  GetQuestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getQuestion
+      Events:
+        GetQuestionApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /questions/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+
+  GetQuestionsByCourseFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getQuestionsByCourse
+      Events:
+        GetQuestionsByCourseApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /courses/{code}/questions
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+
+  UploadImageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.uploadImage
+      Events:
+        UploadImageApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /images/upload
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ImageBucket
+
+  BulkImportQuestionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.bulkImportQuestions
+      Timeout: 300
+      MemorySize: 1024
+      Events:
+        BulkImportQuestionsApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /questions/bulk-import
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  ExportQuestionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.exportQuestions
+      Events:
+        ExportQuestionsApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/courses/{code}/questions/export
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  DownloadCSVTemplateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.downloadCSVTemplate
+      Events:
+        DownloadCSVTemplateApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /questions/csv-template
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Assistant Student Management Functions
+  CreateStudentAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.createStudentAssistant
+      Events:
+        CreateStudentAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/students
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminDisableUser
+                - cognito-idp:AdminEnableUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  BulkCreateStudentsAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.bulkCreateStudentsAssistant
+      Timeout: 120
+      Events:
+        BulkCreateStudentsAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/students/bulk
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminDeleteUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  GetAllStudentsAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getAllStudentsAssistant
+      Events:
+        GetAllStudentsAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/students
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+              Resource:
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-enrollments/index/*'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminRemoveUserFromGroup
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminListGroupsForUser
+                - cognito-idp:ListUsersInGroup
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  ResetStudentPasswordAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.resetStudentPasswordAssistant
+      Events:
+        ResetStudentPasswordAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/students/{id}/reset-password
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminGetUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  # Assistant Course and Enrollment Management Functions
+  CreateEnrollmentAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.createEnrollmentAssistant
+      Events:
+        CreateEnrollmentAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/enrollments
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  GetAllCoursesAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getAllCoursesAssistant
+      Events:
+        GetAllCoursesAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/courses
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  CreateCourseAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.createCourseAssistant
+      Events:
+        CreateCourseAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/courses
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  UpdateCourseAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.updateCourseAssistant
+      Events:
+        UpdateCourseAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/courses/{code}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  BulkStudentActivationAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.bulkStudentActivationAssistant
+      Events:
+        BulkStudentActivationAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/students/bulk-activation
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminEnableUser
+                - cognito-idp:AdminDisableUser
+                - cognito-idp:AdminGetUser
+                - cognito-idp:ListUsersInGroup
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  GetStudentEnrollmentsAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getStudentEnrollmentsAssistant
+      Events:
+        GetStudentEnrollmentsAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/students/{id}/enrollments
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+
+  UpdateEnrollmentAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.updateEnrollmentAssistant
+      Events:
+        UpdateEnrollmentAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/enrollments/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+
+  # Delete Student Functions
+  DeleteStudentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.deleteStudent
+      Events:
+        DeleteStudentApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /students/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-students'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminGetUser
+                - cognito-idp:ListUsersInGroup
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  DeleteStudentAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.deleteStudentAssistant
+      Events:
+        DeleteStudentAssistantApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /assistant/students/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminDeleteUser
+                - cognito-idp:AdminGetUser
+                - cognito-idp:ListUsersInGroup
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  # Student Functions
+  GetCoursesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getCourses
+      Events:
+        GetCoursesApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /courses
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  GetCourseExamsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getCourseExams
+      Events:
+        GetCourseExamsApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /courses/{code}/exams
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+              Resource:
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-enrollments/index/*'
+
+  StartExamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.startExam
+      MemorySize: 512
+      Events:
+        StartExamApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /exams/start
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-exam-sessions'
+        # Upgraded from Read to Crud for Spanish translation cache writes (Req 7.3, 12.2)
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-exam-results'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:GetItem
+              Resource:
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-exam-results/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-enrollments/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-exam-sessions/index/*'
+        # Amazon Translate permissions (Req 14.1). Resource-level scoping is not supported
+        # for TranslateText; we scope by narrow action list only (no translate:* wildcard, Req 14.4).
+        - Statement:
+            - Effect: Allow
+              Action:
+                - translate:TranslateText
+              Resource: '*'
+
+  GetActiveExamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getActiveExam
+      Events:
+        GetActiveExamApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /exams/active
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-exam-sessions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+
+  SubmitAnswerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.submitAnswer
+      Events:
+        SubmitAnswerApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /exams/{sessionId}/answers
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-answers'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-exam-sessions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+
+  CompleteExamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.completeExam
+      MemorySize: 512
+      Events:
+        CompleteExamApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /exams/{sessionId}/complete
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-exam-sessions'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-exam-results'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-answers'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:GetItem
+              Resource:
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-enrollments/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-answers/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-exam-sessions/index/*'
+
+  GetExamHistoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getExamHistory
+      Events:
+        GetExamHistoryApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /exams/history
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-exam-results'
+
+  AbandonExamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.abandonExam
+      Events:
+        AbandonExamApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /exams/abandon
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-exam-sessions'
+
+  # Trial Functions (public, no auth required)
+  GetTrialCoursesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.getTrialCourses
+      Events:
+        GetTrialCoursesApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /trial/courses
+            Method: GET
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+
+  TrialRegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.trialRegister
+      MemorySize: 512
+      Timeout: 30
+      Events:
+        TrialRegisterApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CloudExamApi
+            Path: /trial/register
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminEnableUser
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:ListUsers
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  # Webhook Function (public via Function URL, API key auth in code)
+  WebhookSaleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.webhookSale
+      Timeout: 30
+      Environment:
+        Variables:
+          WEBHOOK_API_KEY: !Ref WebhookApiKey
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - '*'
+          AllowMethods:
+            - POST
+          AllowHeaders:
+            - Content-Type
+            - x-api-key
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-enrollments'
+        - DynamoDBReadPolicy:
+            TableName: !Sub '${TablePrefix}-courses'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminEnableUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  WebhookSaleFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${WebhookSaleFunction}'
+      RetentionInDays: 7
+
+  # Cognito Post Confirmation Trigger (auto-assign students group)
+  PostConfirmationTriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.postConfirmationTrigger
+      Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:AdminListGroupsForUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  # Cognito Pre Sign Up Trigger (auto-link Google accounts + auto-confirm)
+  PreSignUpTriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.preSignUpTrigger
+      Timeout: 10
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:AdminLinkProviderForUser
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+
+  # Batch Spanish Translation Function (operator-invoked, one-time pre-translation)
+  # Translates every non-SOA/DEA question + alternative to Spanish and caches in the _es
+  # fields on the existing DynamoDB records. Idempotent (Property 10).
+  # Feature: exam-spanish-translation, Requirements 9.*, 14.3
+  BatchTranslateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/index.batchTranslate
+      MemorySize: 3008
+      Timeout: 900
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-questions'
+        - DynamoDBCrudPolicy:
+            TableName: !Sub '${TablePrefix}-alternatives'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource:
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-questions/index/*'
+                - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TablePrefix}-alternatives/index/*'
+        # Amazon Translate permissions (Req 14.1, 14.2, 14.3). No wildcard action (Req 14.4).
+        - Statement:
+            - Effect: Allow
+              Action:
+                - translate:TranslateText
+                - translate:GetTerminology
+                - translate:ListTerminologies
+              Resource: '*'
+
+  # S3 Bucket for Images (Public Read with CORS)
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${TablePrefix}-images-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3000
+
+# Outputs
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${CloudExamApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiEndpoint'
+
+  ImageBucketName:
+    Description: S3 bucket name for images
+    Value: !Ref ImageBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-ImageBucket'
+
+  ImageBucketUrl:
+    Description: S3 bucket URL for images
+    Value: !GetAtt ImageBucket.WebsiteURL
+    Export:
+      Name: !Sub '${AWS::StackName}-ImageBucketUrl'

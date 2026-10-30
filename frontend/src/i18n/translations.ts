@@ -1,0 +1,261 @@
+/**
+ * Translations for the application
+ * Supports English (en) and Spanish (es)
+ */
+
+export type Language = 'en' | 'es';
+
+export const translations = {
+  en: {
+    // Header
+    'header.subtitle': 'Cloud Exam Platform',
+    'header.logout': 'Logout',
+    'header.role': 'Role:',
+    'header.visitSite': 'Visit our site',
+    'header.needMoreTime': 'Need More Time To Practice? Click Here',
+    
+    // Navigation
+    'nav.dashboard': 'Dashboard',
+    'nav.questions': 'Questions',
+    'nav.myCourses': 'My Courses',
+    'nav.examHistory': 'Exam History',
+    
+    // Login
+    'login.title': 'Student Login',
+    'login.email': 'Email',
+    'login.password': 'Password',
+    'login.submit': 'Login',
+    'login.loggingIn': 'Logging in...',
+    'login.forgotPassword': 'Forgot your password?',
+    'login.contactAdmin': 'Contact your administrator',
+    
+    // Student Dashboard
+    'student.welcome': 'Welcome',
+    'student.enrolledCourses': 'Your Enrolled Courses',
+    'student.noCourses': 'You are not enrolled in any courses yet.',
+    'student.contactAdmin': 'Please contact your administrator to enroll in courses.',
+    'student.viewExam': 'View Exam',
+    'student.accessExpired': 'Access Expired',
+    'student.accessDenied': 'Access Denied',
+    'student.expires': 'Expires',
+    'student.questionsInBank': 'questions in bank',
+    
+    // Exam Session
+    'exam.backToCourses': '← Back to Courses',
+    'exam.provider': 'Provider:',
+    'exam.numberOfQuestions': 'Number of Questions:',
+    'exam.passingScore': 'Passing Score:',
+    'exam.accessStatus': 'Access Status:',
+    'exam.accessExpires': 'Access Expires:',
+    'exam.active': 'Active',
+    'exam.inactive': 'Inactive',
+    'exam.instructions': 'Instructions',
+    'exam.instruction1': 'questions',
+    'exam.instruction2': 'Each question has multiple choice alternatives',
+    'exam.instruction3': 'Select one answer for each question',
+    'exam.instruction4': 'You can navigate between questions using Previous and Next buttons',
+    'exam.instruction5': 'Your answers are saved automatically',
+    'exam.instruction6': 'Complete all questions before finishing the exam',
+    'exam.instruction7': 'You can only have one active exam session at a time',
+    'exam.startExam': 'Start Exam',
+    'exam.startingExam': 'Starting Exam...',
+    'exam.restartExam': 'Restart Exam',
+    'exam.abandonPrevious': 'Abandon Previous Exam',
+    'exam.abandoning': 'Abandoning...',
+    
+    // Exam Taking
+    'examTaking.question': 'Question',
+    'examTaking.of': 'of',
+    'examTaking.flagged': 'Flagged',
+    'examTaking.selectAnswer': 'Select your answer:',
+    'examTaking.selectAnswers': 'Select your answers:',
+    'examTaking.previous': '← Previous',
+    'examTaking.next': 'Next →',
+    'examTaking.selectAllCorrect': 'Select all correct answers',
+    'examTaking.pleaseSelect': 'Please select an answer',
+    'examTaking.finishExam': 'Finish Exam',
+    'examTaking.warningUnanswered': 'Warning: You have',
+    'examTaking.unansweredQuestions': 'unanswered question(s). Unanswered questions will be marked as incorrect.',
+    'examTaking.allAnswered': 'All questions answered. Click to finish and see your results.',
+    'examTaking.answered': 'Answered:',
+    'examTaking.questions': 'questions',
+    'examTaking.flaggedQuestions': 'Flagged Questions',
+    'examTaking.noFlagged': 'No flagged questions yet. Click the flag icon on any question to mark it for review.',
+    'examTaking.englishNotAvailable': 'English text — translation not available',
+    
+    // Exam Results
+    'results.title': 'Exam Results',
+    'results.passed': 'PASSED',
+    'results.failed': 'FAILED',
+    'results.score': 'Score',
+    'results.correct': 'Correct',
+    'results.incorrect': 'Incorrect',
+    'results.passingScore': 'Passing Score:',
+    'results.yourScore': 'Your Score:',
+    'results.reviewAnswers': 'Review Your Answers',
+    'results.yourAnswer': 'Your answer:',
+    'results.correctAnswer': 'Correct answer:',
+    'results.backToCourses': 'Back to Courses',
+    'results.tryAgain': 'Try Again',
+    'results.englishNotAvailable': 'English text — translation not available',
+    
+    // Exam History
+    'history.title': 'Exam History',
+    'history.noExams': 'You haven\'t completed any exams yet.',
+    'history.date': 'Date',
+    'history.course': 'Course',
+    'history.score': 'Score',
+    'history.result': 'Result',
+    
+    // Stale Session
+    'stale.title': 'Incomplete Exam Found',
+    'stale.warning': 'You have an incomplete exam',
+    'stale.startedAgo': 'You started this exam',
+    'stale.hoursAgo': 'hours ago',
+    'stale.on': 'on',
+    'stale.continueOrAbandon': 'You can either continue where you left off or abandon this exam and start fresh.',
+    'stale.continueExam': 'Continue Exam',
+    'stale.abandonStart': 'Abandon & Start Fresh',
+    
+    // Common
+    'common.loading': 'Preparing your cloud experience...',
+    'common.error': 'Error',
+    'common.success': 'Success',
+    'common.save': 'Save',
+    'common.cancel': 'Cancel',
+    'common.delete': 'Delete',
+    'common.edit': 'Edit',
+    'common.create': 'Create',
+    'common.search': 'Search',
+    'common.actions': 'Actions',
+    'common.yes': 'Yes',
+    'common.no': 'No',
+  },
+  es: {
+    // Header
+    'header.subtitle': 'Plataforma de Exámenes Cloud',
+    'header.logout': 'Cerrar Sesión',
+    'header.role': 'Rol:',
+    'header.visitSite': 'Visita nuestro sitio',
+    'header.needMoreTime': '¿Necesitas Más Tiempo Para Practicar? Haz Clic Aquí',
+    
+    // Navigation
+    'nav.dashboard': 'Panel',
+    'nav.questions': 'Preguntas',
+    'nav.myCourses': 'Mis Cursos',
+    'nav.examHistory': 'Historial de Exámenes',
+    
+    // Login
+    'login.title': 'Inicio de Sesión',
+    'login.email': 'Correo Electrónico',
+    'login.password': 'Contraseña',
+    'login.submit': 'Iniciar Sesión',
+    'login.loggingIn': 'Iniciando sesión...',
+    'login.forgotPassword': '¿Olvidaste tu contraseña?',
+    'login.contactAdmin': 'Contacta a tu administrador',
+    
+    // Student Dashboard
+    'student.welcome': 'Bienvenido',
+    'student.enrolledCourses': 'Tus Cursos Inscritos',
+    'student.noCourses': 'Aún no estás inscrito en ningún curso.',
+    'student.contactAdmin': 'Por favor contacta a tu administrador para inscribirte en cursos.',
+    'student.viewExam': 'Ver Examen',
+    'student.accessExpired': 'Acceso Expirado',
+    'student.accessDenied': 'Acceso Denegado',
+    'student.expires': 'Expira',
+    'student.questionsInBank': 'preguntas en banco',
+    
+    // Exam Session
+    'exam.backToCourses': '← Volver a Cursos',
+    'exam.provider': 'Proveedor:',
+    'exam.numberOfQuestions': 'Número de Preguntas:',
+    'exam.passingScore': 'Puntaje para Aprobar:',
+    'exam.accessStatus': 'Estado de Acceso:',
+    'exam.accessExpires': 'Acceso Expira:',
+    'exam.active': 'Activo',
+    'exam.inactive': 'Inactivo',
+    'exam.instructions': 'Instrucciones',
+    'exam.instruction1': 'preguntas',
+    'exam.instruction2': 'Cada pregunta tiene alternativas de opción múltiple',
+    'exam.instruction3': 'Selecciona una respuesta para cada pregunta',
+    'exam.instruction4': 'Puedes navegar entre preguntas usando los botones Anterior y Siguiente',
+    'exam.instruction5': 'Tus respuestas se guardan automáticamente',
+    'exam.instruction6': 'Completa todas las preguntas antes de finalizar el examen',
+    'exam.instruction7': 'Solo puedes tener una sesión de examen activa a la vez',
+    'exam.startExam': 'Iniciar Examen',
+    'exam.startingExam': 'Iniciando Examen...',
+    'exam.restartExam': 'Reiniciar Examen',
+    'exam.abandonPrevious': 'Abandonar Examen Anterior',
+    'exam.abandoning': 'Abandonando...',
+    
+    // Exam Taking
+    'examTaking.question': 'Pregunta',
+    'examTaking.of': 'de',
+    'examTaking.flagged': 'Marcadas',
+    'examTaking.selectAnswer': 'Selecciona tu respuesta:',
+    'examTaking.selectAnswers': 'Selecciona tus respuestas:',
+    'examTaking.previous': '← Anterior',
+    'examTaking.next': 'Siguiente →',
+    'examTaking.selectAllCorrect': 'Selecciona todas las respuestas correctas',
+    'examTaking.pleaseSelect': 'Por favor selecciona una respuesta',
+    'examTaking.finishExam': 'Finalizar Examen',
+    'examTaking.warningUnanswered': 'Advertencia: Tienes',
+    'examTaking.unansweredQuestions': 'pregunta(s) sin responder. Las preguntas sin responder se marcarán como incorrectas.',
+    'examTaking.allAnswered': 'Todas las preguntas respondidas. Haz clic para finalizar y ver tus resultados.',
+    'examTaking.answered': 'Respondidas:',
+    'examTaking.questions': 'preguntas',
+    'examTaking.flaggedQuestions': 'Preguntas Marcadas',
+    'examTaking.noFlagged': 'Aún no hay preguntas marcadas. Haz clic en el ícono de bandera en cualquier pregunta para marcarla para revisión.',
+    'examTaking.englishNotAvailable': 'Texto en inglés — traducción no disponible',
+    
+    // Exam Results
+    'results.title': 'Resultados del Examen',
+    'results.passed': 'APROBADO',
+    'results.failed': 'REPROBADO',
+    'results.score': 'Puntaje',
+    'results.correct': 'Correctas',
+    'results.incorrect': 'Incorrectas',
+    'results.passingScore': 'Puntaje para Aprobar:',
+    'results.yourScore': 'Tu Puntaje:',
+    'results.reviewAnswers': 'Revisa Tus Respuestas',
+    'results.yourAnswer': 'Tu respuesta:',
+    'results.correctAnswer': 'Respuesta correcta:',
+    'results.backToCourses': 'Volver a Cursos',
+    'results.tryAgain': 'Intentar de Nuevo',
+    'results.englishNotAvailable': 'Texto en inglés — traducción no disponible',
+    
+    // Exam History
+    'history.title': 'Historial de Exámenes',
+    'history.noExams': 'Aún no has completado ningún examen.',
+    'history.date': 'Fecha',
+    'history.course': 'Curso',
+    'history.score': 'Puntaje',
+    'history.result': 'Resultado',
+    
+    // Stale Session
+    'stale.title': 'Examen Incompleto Encontrado',
+    'stale.warning': 'Tienes un examen incompleto',
+    'stale.startedAgo': 'Comenzaste este examen hace',
+    'stale.hoursAgo': 'horas',
+    'stale.on': 'el',
+    'stale.continueOrAbandon': 'Puedes continuar donde lo dejaste o abandonar este examen y comenzar de nuevo.',
+    'stale.continueExam': 'Continuar Examen',
+    'stale.abandonStart': 'Abandonar y Comenzar de Nuevo',
+    
+    // Common
+    'common.loading': 'Preparando tu experiencia cloud...',
+    'common.error': 'Error',
+    'common.success': 'Éxito',
+    'common.save': 'Guardar',
+    'common.cancel': 'Cancelar',
+    'common.delete': 'Eliminar',
+    'common.edit': 'Editar',
+    'common.create': 'Crear',
+    'common.search': 'Buscar',
+    'common.actions': 'Acciones',
+    'common.yes': 'Sí',
+    'common.no': 'No',
+  },
+} as const;
+
+export type TranslationKey = keyof typeof translations.en;

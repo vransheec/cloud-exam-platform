@@ -1,0 +1,421 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Cloud Exam Platform - DynamoDB Tables and Indexes
+
+Parameters:
+  TablePrefix:
+    Type: String
+    Default: cloud-exam-platform
+    Description: Prefix for DynamoDB table names
+
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Deployment environment
+
+Resources:
+  # Users Table
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-users'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Students Table
+  StudentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-students'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Courses Table
+  CoursesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-courses'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: code
+          AttributeType: S
+        - AttributeName: provider
+          AttributeType: S
+      KeySchema:
+        - AttributeName: code
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: provider-index
+          KeySchema:
+            - AttributeName: provider
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Questions Table
+  QuestionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-questions'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: courseCode
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: courseCode-createdAt-index
+          KeySchema:
+            - AttributeName: courseCode
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Question History Table
+  QuestionHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-question-history'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: questionId
+          AttributeType: S
+        - AttributeName: version
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: questionId-version-index
+          KeySchema:
+            - AttributeName: questionId
+              KeyType: HASH
+            - AttributeName: version
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Alternatives Table
+  AlternativesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-alternatives'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: questionId
+          AttributeType: S
+        - AttributeName: order
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: questionId-order-index
+          KeySchema:
+            - AttributeName: questionId
+              KeyType: HASH
+            - AttributeName: order
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Enrollments Table
+  EnrollmentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-enrollments'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: studentId
+          AttributeType: S
+        - AttributeName: courseCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: studentId-courseCode-index
+          KeySchema:
+            - AttributeName: studentId
+              KeyType: HASH
+            - AttributeName: courseCode
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: courseCode-index
+          KeySchema:
+            - AttributeName: courseCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Exam Sessions Table
+  ExamSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-exam-sessions'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: studentId
+          AttributeType: S
+        - AttributeName: startTime
+          AttributeType: S
+        - AttributeName: isActive
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: studentId-startTime-index
+          KeySchema:
+            - AttributeName: studentId
+              KeyType: HASH
+            - AttributeName: startTime
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: studentId-isActive-index
+          KeySchema:
+            - AttributeName: studentId
+              KeyType: HASH
+            - AttributeName: isActive
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Answers Table
+  AnswersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-answers'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: sessionId
+          AttributeType: S
+        - AttributeName: questionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: sessionId-questionId-index
+          KeySchema:
+            - AttributeName: sessionId
+              KeyType: HASH
+            - AttributeName: questionId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # Exam Results Table
+  ExamResultsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-exam-results'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: studentId
+          AttributeType: S
+        - AttributeName: completedAt
+          AttributeType: S
+        - AttributeName: courseCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: studentId-completedAt-index
+          KeySchema:
+            - AttributeName: studentId
+              KeyType: HASH
+            - AttributeName: completedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: courseCode-completedAt-index
+          KeySchema:
+            - AttributeName: courseCode
+              KeyType: HASH
+            - AttributeName: completedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+  # System Config Table
+  SystemConfigTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TablePrefix}-system-config'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: key
+          KeyType: HASH
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: cloud-exam-platform
+
+Outputs:
+  UsersTableName:
+    Description: Users table name
+    Value: !Ref UsersTable
+    Export:
+      Name: !Sub '${AWS::StackName}-UsersTable'
+
+  StudentsTableName:
+    Description: Students table name
+    Value: !Ref StudentsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-StudentsTable'
+
+  CoursesTableName:
+    Description: Courses table name
+    Value: !Ref CoursesTable
+    Export:
+      Name: !Sub '${AWS::StackName}-CoursesTable'
+
+  QuestionsTableName:
+    Description: Questions table name
+    Value: !Ref QuestionsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-QuestionsTable'
+
+  AlternativesTableName:
+    Description: Alternatives table name
+    Value: !Ref AlternativesTable
+    Export:
+      Name: !Sub '${AWS::StackName}-AlternativesTable'
+
+  EnrollmentsTableName:
+    Description: Enrollments table name
+    Value: !Ref EnrollmentsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-EnrollmentsTable'
+
+  ExamSessionsTableName:
+    Description: Exam Sessions table name
+    Value: !Ref ExamSessionsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-ExamSessionsTable'
+
+  AnswersTableName:
+    Description: Answers table name
+    Value: !Ref AnswersTable
+    Export:
+      Name: !Sub '${AWS::StackName}-AnswersTable'
+
+  ExamResultsTableName:
+    Description: Exam Results table name
+    Value: !Ref ExamResultsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-ExamResultsTable'
+
+  SystemConfigTableName:
+    Description: System Config table name
+    Value: !Ref SystemConfigTable
+    Export:
+      Name: !Sub '${AWS::StackName}-SystemConfigTable'

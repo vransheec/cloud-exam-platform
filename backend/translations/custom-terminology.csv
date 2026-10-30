@@ -1,0 +1,206 @@
+en,es
+S3,S3
+EC2,EC2
+Lambda,Lambda
+VPC,VPC
+IAM,IAM
+CloudFront,CloudFront
+DynamoDB,DynamoDB
+RDS,RDS
+SNS,SNS
+SQS,SQS
+CloudWatch,CloudWatch
+Route 53,Route 53
+ELB,ELB
+ALB,ALB
+NLB,NLB
+EBS,EBS
+EFS,EFS
+FSx,FSx
+Glacier,Glacier
+Kinesis,Kinesis
+Redshift,Redshift
+Athena,Athena
+Glue,Glue
+EMR,EMR
+SageMaker,SageMaker
+Bedrock,Bedrock
+ECS,ECS
+EKS,EKS
+Fargate,Fargate
+Step Functions,Step Functions
+EventBridge,EventBridge
+API Gateway,API Gateway
+Cognito,Cognito
+KMS,KMS
+Secrets Manager,Secrets Manager
+Systems Manager,Systems Manager
+CloudFormation,CloudFormation
+CloudTrail,CloudTrail
+Config,Config
+GuardDuty,GuardDuty
+Inspector,Inspector
+Macie,Macie
+WAF,WAF
+Shield,Shield
+Direct Connect,Direct Connect
+Transit Gateway,Transit Gateway
+PrivateLink,PrivateLink
+Organizations,Organizations
+Control Tower,Control Tower
+AWS Backup,AWS Backup
+Storage Gateway,Storage Gateway
+DataSync,DataSync
+Snowball,Snowball
+Outposts,Outposts
+Elastic Beanstalk,Elastic Beanstalk
+CodePipeline,CodePipeline
+CodeBuild,CodeBuild
+CodeCommit,CodeCommit
+CodeDeploy,CodeDeploy
+Aurora,Aurora
+DocumentDB,DocumentDB
+Neptune,Neptune
+ElastiCache,ElastiCache
+MemoryDB,MemoryDB
+Timestream,Timestream
+QLDB,QLDB
+Azure AD,Azure AD
+Entra ID,Entra ID
+AKS,AKS
+Blob Storage,Blob Storage
+Azure Storage,Azure Storage
+Azure Functions,Azure Functions
+App Service,App Service
+Logic Apps,Logic Apps
+Service Bus,Service Bus
+Event Grid,Event Grid
+Event Hubs,Event Hubs
+Cosmos DB,Cosmos DB
+Azure SQL,Azure SQL
+SQL Database,SQL Database
+Synapse Analytics,Synapse Analytics
+Data Factory,Data Factory
+Databricks,Databricks
+HDInsight,HDInsight
+Virtual Network,Virtual Network
+VNet,VNet
+ExpressRoute,ExpressRoute
+Azure Firewall,Azure Firewall
+Application Gateway,Application Gateway
+Front Door,Front Door
+Traffic Manager,Traffic Manager
+Load Balancer,Load Balancer
+Azure DNS,Azure DNS
+Key Vault,Key Vault
+Azure Monitor,Azure Monitor
+Log Analytics,Log Analytics
+Sentinel,Sentinel
+Defender,Defender
+Azure Policy,Azure Policy
+Azure Arc,Azure Arc
+Resource Manager,Resource Manager
+ARM,ARM
+Bicep,Bicep
+Azure DevOps,Azure DevOps
+Azure Pipelines,Azure Pipelines
+Managed Identity,Managed Identity
+RBAC,RBAC
+Conditional Access,Conditional Access
+Azure Bastion,Azure Bastion
+Azure Backup,Azure Backup
+Site Recovery,Site Recovery
+Azure Migrate,Azure Migrate
+Virtual Machines,Virtual Machines
+VM,VM
+Scale Sets,Scale Sets
+Container Instances,Container Instances
+Container Registry,Container Registry
+Service Fabric,Service Fabric
+Power BI,Power BI
+Azure Stream Analytics,Azure Stream Analytics
+Azure Cache for Redis,Azure Cache for Redis
+API Management,API Management
+GCP,GCP
+Google Cloud,Google Cloud
+BigQuery,BigQuery
+GKE,GKE
+Cloud Run,Cloud Run
+Pub/Sub,Pub/Sub
+Cloud Storage,Cloud Storage
+Compute Engine,Compute Engine
+App Engine,App Engine
+Cloud Functions,Cloud Functions
+Cloud SQL,Cloud SQL
+Cloud Spanner,Cloud Spanner
+Firestore,Firestore
+Bigtable,Bigtable
+Dataflow,Dataflow
+Dataproc,Dataproc
+Dataprep,Dataprep
+Composer,Composer
+Looker,Looker
+Cloud CDN,Cloud CDN
+Cloud DNS,Cloud DNS
+Cloud Interconnect,Cloud Interconnect
+Cloud VPN,Cloud VPN
+Cloud Load Balancing,Cloud Load Balancing
+Cloud Armor,Cloud Armor
+IAP,IAP
+VPC Service Controls,VPC Service Controls
+Cloud KMS,Cloud KMS
+Secret Manager,Secret Manager
+Cloud Identity,Cloud Identity
+Workload Identity,Workload Identity
+Organization Policy,Organization Policy
+Cloud Deployment Manager,Cloud Deployment Manager
+Cloud Build,Cloud Build
+Artifact Registry,Artifact Registry
+Cloud Logging,Cloud Logging
+Cloud Monitoring,Cloud Monitoring
+Cloud Trace,Cloud Trace
+Cloud Profiler,Cloud Profiler
+Error Reporting,Error Reporting
+Vertex AI,Vertex AI
+AutoML,AutoML
+AI Platform,AI Platform
+Dialogflow,Dialogflow
+Anthos,Anthos
+Apigee,Apigee
+Memorystore,Memorystore
+Filestore,Filestore
+Persistent Disk,Persistent Disk
+Cloud Endpoints,Cloud Endpoints
+Cloud Tasks,Cloud Tasks
+Cloud Scheduler,Cloud Scheduler
+Eventarc,Eventarc
+Cloud Source Repositories,Cloud Source Repositories
+CIDR,CIDR
+DNS,DNS
+DHCP,DHCP
+TCP,TCP
+UDP,UDP
+HTTP,HTTP
+HTTPS,HTTPS
+SSL,SSL
+TLS,TLS
+SSH,SSH
+RDP,RDP
+NAT,NAT
+VPN,VPN
+CDN,CDN
+REST,REST
+API,API
+SDK,SDK
+CLI,CLI
+JSON,JSON
+YAML,YAML
+XML,XML
+SAML,SAML
+OAuth,OAuth
+OIDC,OIDC
+JWT,JWT
+SSE,SSE
+MFA,MFA
+TOTP,TOTP
+SCIM,SCIM
